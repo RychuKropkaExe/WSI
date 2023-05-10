@@ -197,64 +197,113 @@ function eval(board)
     return 0
 end
 
-function minmax(board::Matrix{Int64}, table::Dict{Int64,Int64}, depth::Int64, maximizingPlayer::Bool)
-
-    if checkIfWinning(board)
-        if maximizingPlayer
-            return 10000
-        else
-            return -10000
-        end
-    end
-
-    if checkIfLosing(board)
-
-        if maximizingPlayer
-            return -10000
-        else
-            return 10000
-        end
-
-    end
+function minmax(board::Matrix{Int64}, table::Dict{Int64,Int64}, depth::Int64, maximizingPlayer::Bool,
+                playerID::Int64, enemyID::Int64, currHash::Int64)
 
     if depth == 0
 
-        return eval(board)
+        if checkIfWinning(board)
+            if maximizingPlayer
+                #Problem jest z tym, że oni zapisują taki sam wynik dla obu, pomimo że to nie to samo
+                return (10000, (0,0))
+            else
+                return (-10000, (0,0))
+            end
+        end
+    
+        if checkIfLosing(board)
+    
+            if maximizingPlayer
+                return (-10000, (0,0))
+            else
+                return (10000, (0,0))
+            end
+    
+        end
+        
+        e = eval(board)
+        #println(e)
+
+        return (e, (0,0))
 
     end
-
+    bestMove::Tuple{Int64,Int64} = (0,0)
     if maximizingPlayer
         maxEval::Int64 = typemin(Int64)
+        bestMove = (0,0)
         for i in 1:5
 
             for j in 1:5
 
                 if  board[i,j] == 0
-                    newBoard = deepcopy(board)
-                    eval::Int64 = minmax(newBoard, table, depth - 1, false)
-                    maxEval = max(eval,maxEval)
+
+                    key::Int64 = currHash + playerID*(3^(((i-1)*5) + j))
+
+                    eval::Int64 = get(table, key, 0) 
+
+                    if eval == 0
+                        newBoard = deepcopy(board)
+                        newBoard[i,j] = playerID
+                        if checkIfWinning(newBoard)
+                            return (10000, (i,j))
+                        end
+                    
+                        if checkIfLosing(newBoard)
+                            return (-10000, (i,j))
+                        end
+                        result = minmax(newBoard, table, depth - 1, false, playerID, enemyID, currHash)
+                        eval = result[1]
+                        table[key] = eval
+                    end
+                    #println("EVAL: $playerID = $eval")
+                    if maxEval < eval
+                        maxEval = eval
+                        bestMove = (i,j)
+                    end
                 end
 
             end
 
         end
-        return maxEval
+        return (maxEval, bestMove)
     else
         minEval::Int64 = typemax(Int64)
+        bestMove = (0,0)
         for i in 1:5
 
             for j in 1:5
 
                 if  board[i,j] == 0
-                    newBoard = deepcopy(board)
-                    eval::Int64 = minmax(newBoard, table, depth - 1, true)
-                    minEval = min(eval, minEval)
+
+                    key::Int64 = currHash + enemyID*(3^(((i-1)*5) + j))
+
+                    eval::Int64 = get(table, key, 0) 
+
+                    if eval == 0
+                        newBoard = deepcopy(board)
+                        newBoard[i,j] = enemyID
+                        if checkIfWinning(newBoard)
+                            return (-10000, (i,j))
+                        end
+                    
+                        if checkIfLosing(newBoard)
+                            return (10000, (i,j))
+                        end
+                        result = minmax(newBoard, table, depth - 1, true, playerID, enemyID, currHash)
+                        eval = result[1]
+                        table[key] = eval
+                    end
+                    #println("EVAL: $enemyID = $eval")
+                    if minEval > eval
+                        minEval = eval
+                        bestMove = (i,j)
+                    end
                 end
 
             end
 
         end
-        return minEval
+        return (minEval, bestMove)
     end
 
 end
